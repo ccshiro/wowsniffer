@@ -21,9 +21,9 @@ set(minhook_src
 else()
 set(minhook_src
 	${minhook_src}
-	src/HDE32/src/hde32.h
-	src/HDE32/src/hde32.c
-	src/HDE32/src/table32.c)
+	src/HDE32/hde32.h
+	src/HDE32/hde32.c
+	src/HDE32/table32.h)
 endif()
 
 include_directories(include)

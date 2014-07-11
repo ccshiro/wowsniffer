@@ -17,6 +17,9 @@ software makes use of, and to RaMMicHaeL for maintaining and improving MinHook.
 You can check out MinHook at: https://github.com/RaMMicHaeL/minhook
 
 2. Requirements
+Visual Studio Express (could potentially work with other compilers with some
+                       tweaking, which I might get around to eventually).
+CMake
 
 3. Installation
 Do the following:
