@@ -1,0 +1,48 @@
+Index:
+1. What is wowsniffer?
+2. Requirements
+3. Installation
+4. Usage
+
+1. What is wowsniffer?
+Wowsniffer is a tool to sniff data sent and received by the World of Warcraft
+client. It does this from inside the process, and as such is easily detectable
+by Warden; so use at your own risk!
+
+Wowsniffer is licensed under the MIT license, its source and latest version can
+be obtained at: https://github.com/ccshiro/wowsniffer
+
+Also, huge thanks to Tsuda Kageyu for writing the MinHook library, which this
+software makes use of, and to RaMMicHaeL for maintaining and improving MinHook.
+You can check out MinHook at: https://github.com/RaMMicHaeL/minhook
+
+2. Requirements
+
+3. Installation
+Do the following:
+	1. Launch cmd.exe and point it to your intended build directory. I have my
+	   setup looking like this:
+	   ./wowsniffer/         # this is the source directory
+	   ./wowsniffer_build/   # build directory
+	   ./wowsniffer_install/ # install directory
+	2. Type "cmake --help" to see the generators available to you.
+	3. Pick one appropriate for you, make sure you get the architecture correct.
+	   Let's say we chose "Visual Studio 11 Win64".
+	4. Run the following command, adjusting the input according to your needs:
+	   cmake -DCMAKE_INSTALL_PREFIX=../wowsniffer_install/ -G "Visual Studio 11 Win64" ../wowsniffer/
+	5. Open the generated solution file; build and install. The binaries will
+	   be placed in ./wowsniffer_install/
+
+4. Usage
+Open cmd.exe and point it to the directory where wowsniffer.exe is. Invoke
+wowsniffer.exe as shown below to print the proper usage of the program:
+
+wowsniffer --help
+
+Make sure your World of Warcraft client is the same architecture as you compiled
+against.
+
+TIP: You can redirect stdout to dump the output to a file instead of your
+console. For example:
+
+wowsniffer 1500 > "dump.txt"
