@@ -225,6 +225,9 @@ bool extract_args(int argc, char* argv[])
         }
     }
 
+    if (pid == -1)
+        return false;
+
     return true;
 }
 
@@ -278,14 +281,18 @@ void read_loop()
 {
     read_loop_active = true;
 
-    char recv_buf[4096];
+    // 512 KiB ought to be enough for anybody
+    char* recv_buf = new char[512 * 1024];
     while (read_loop_active)
     {
         DWORD read = 0;
-        if (ReadFile(pipe, recv_buf, 4096, &read, NULL) == 0)
+        if (ReadFile(pipe, recv_buf, 512 * 1024, &read, NULL) == 0)
         {
             if (!read_loop_active)
+            {
+                delete recv_buf;
                 return;
+            }
 
             DWORD err = GetLastError();
             if (err != ERROR_MORE_DATA)
@@ -310,6 +317,7 @@ void read_loop()
             (type == "==SEND" && dump_send))
             cout << str;
     }
+    delete recv_buf;
 }
 
 void sigint_handler(int)

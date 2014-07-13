@@ -206,8 +206,6 @@ void implement_hooks()
         return;
 }
 
-// XXX: make sure pattern doesnt include size of stack, which is probably not patch resistant
-
 void* get_recv()
 {
 #ifdef BUILD_32_BIT
