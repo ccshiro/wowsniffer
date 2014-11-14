@@ -44,7 +44,7 @@ HANDLE pipe = 0;
 void send_msg(const std::string& msg);
 void implement_hooks();
 
-struct packet_data
+struct send_packet_data
 {
     void*           vtable;
     void*           data;
@@ -53,39 +53,44 @@ struct packet_data
     char            unk2[4];
 };
 
-// TODO: Seems to be one extra parameter for recv in 64-bit WoW. This seemed
-// strange to me, but I did not invest the time in verifying it. Need to check
-// it.
+struct recv_packet_data
+{
+    // TODO: structure's changed, need to research changes
+    void*           data;
+    void*           unk;            // 0
+    unsigned int    size;
+    unsigned int    unk2;           // 0x20
+    unsigned int    unk3;           // 0
+    // ...
+};
 
 #ifdef BUILD_32_BIT
 // NOTE: __thiscall receives the this pointer through ecx, __fastcall passes
 // arg1 through ecx and arg2 through edx. We abuse this property of __fastcall
 // to hook the recv and send functions, which use the __thiscall convention.
 
-typedef void (__thiscall *recv_func_t)(void*, void*, packet_data&, void*);
-typedef void (__thiscall *send_func_t)(void*, packet_data&, void*);
+typedef void (__thiscall *recv_func_t)(void*, void*, void*, recv_packet_data&);
+typedef void (__thiscall *send_func_t)(void*, send_packet_data&, void*);
 
 recv_func_t real_recv;
 send_func_t real_send;
 
 void __fastcall hookd_recv(void* this_ptr, size_t /*ignored*/, void* unk,
-    packet_data& data, void* unk2);
+    void* unk2, recv_packet_data& data);
 void __fastcall hookd_send(void* this_ptr, size_t /*ignored*/,
-    packet_data& data, void* unk);
+    send_packet_data& data, void* unk);
 #else
 // NOTE: Microsoft x64 only defines one calling convention, so we need not
 // resort to trickery with __thiscall and __fastcall, as we do for x86
 
-typedef void (*recv_func_t)(void*, void*, packet_data&, void*, void*);
-typedef void (*send_func_t)(void*, packet_data&, void*);
+typedef void (*recv_func_t)(void*, void*, void*, recv_packet_data&);
+typedef void (*send_func_t)(void*, send_packet_data&, void*);
 
 recv_func_t real_recv;
 send_func_t real_send;
 
-void hookd_recv(void* this_ptr, void* unk,
-    packet_data& data, void* unk2, void* unk3);
-void hookd_send(void* this_ptr,
-    packet_data& data, void* unk);
+void hookd_recv(void* this_ptr, void* unk, void* unk2, recv_packet_data& data);
+void hookd_send(void* this_ptr, send_packet_data& data, void* unk);
 #endif
 
 BOOL APIENTRY DllMain(HMODULE mod, DWORD call_reason, LPVOID lpReserved)
@@ -210,22 +215,21 @@ void* get_recv()
 {
 #ifdef BUILD_32_BIT
     unsigned char byte_str[] =
-    "\x55\x8B\xEC\xFF\x05\x00\x00\x00\x00\x53\x8B\x5D\x0C\x56\x57\x8D";
+    "\x55\x8B\xEC\x00\x00\x8B\x00\x10\x8B\x00\x08\x00\x8B\x00\x8D\x00";
     bool gaps[16] = { false };
-    gaps[5] = true;
+    gaps[3] = true;
+    gaps[4] = true;
     gaps[6] = true;
-    gaps[7] = true;
-    gaps[8] = true;
+    gaps[9] = true;
+    gaps[11] = true;
+    gaps[13] = true;
+    gaps[15] = true;
     int len = 16;
 #else
     unsigned char byte_str[] =
-    "\x48\x89\x5C\x24\x08\x48\x89\x6C\x24\x10\x48\x89\x74\x24\x18\x57"
-    "\x48\x83\xEC\x00\xFF\x05\x00\x00\x00\x00\x8B\xEA\x48\x8B\xF1\x48";
+    "\x48\x89\x5C\x24\x08\x48\x89\x6C\x24\x10\x48\x89\x74\x24\x18\x48"
+    "\x89\x7C\x24\x20\x41\x54\x48\x83\xEC\x00\x41\x8B\x41\x10\x49\x8B";
     bool gaps[32] = { false };
-    gaps[19] = true;
-    gaps[22] = true;
-    gaps[23] = true;
-    gaps[24] = true;
     gaps[25] = true;
     int len = 32;
 #endif
@@ -250,7 +254,7 @@ void* get_send()
 #else
     unsigned char byte_str[] =
     "\x48\x89\x5C\x24\x10\x48\x89\x6C\x24\x18\x56\x57\x41\x54\x41\x55"
-    "\x41\x56\x48\x83\xEC\x00\x48\x8D\xB1\x38\x05\x00\x00\x48\x8B\xD9";
+    "\x41\x56\x48\x83\xEC\x00\x4C\x8D\xA1\x38\x05\x00\x00\x48\x8B\xD9";
     bool gaps[32] = { false };
     gaps[21] = true;
     int len = 32;
@@ -270,13 +274,11 @@ string format_data(void* data, unsigned int len);
 
 #ifdef BUILD_32_BIT
 void __fastcall hookd_recv(void* this_ptr, size_t /*ignored*/, void* unk,
-    packet_data& data, void* unk2)
+    void* unk2, recv_packet_data& data)
 #else
-void hookd_recv(void* this_ptr, void* unk,
-    packet_data& data, void* unk2, void* unk3)
+void hookd_recv(void* this_ptr, void* unk, void* unk2, recv_packet_data& data)
 #endif
 {
-    // Dump data to pipe
     stringstream ss;
     ss << "==RECV\n";
     ss << "(SERVER) ";
@@ -284,20 +286,15 @@ void hookd_recv(void* this_ptr, void* unk,
     ss << "\n";
     send_msg(ss.str());
 
-    // TODO: Read todo up top
-#ifdef BUILD_32_BIT
-    real_recv(this_ptr, unk, data, unk2);
-#else
-    real_recv(this_ptr, unk, data, unk2, unk3);
-#endif
+    real_recv(this_ptr, unk, unk2, data);
 }
 
 #ifdef BUILD_32_BIT
 void __fastcall hookd_send(void* this_ptr, size_t /*ignored*/,
-    packet_data& data, void* unk)
+    send_packet_data& data, void* unk)
 #else
 void hookd_send(void* this_ptr,
-    packet_data& data, void* unk)
+    send_packet_data& data, void* unk)
 #endif
 {
     // Dump data to pipe
@@ -334,7 +331,9 @@ string format_data(void* data, unsigned int len)
 
             char buf[3];
             sprintf(buf, "%02X", ((unsigned char*)data)[offset]);
-            ss << buf << " ";
+            ss << buf;
+            if ((i+1) != 16)
+                ss << " ";
         }
         ss << "\n";
     }
